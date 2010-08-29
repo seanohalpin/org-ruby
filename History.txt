@@ -1,3 +1,7 @@
+== 0.5.3 / 2010-08-29
+* turn-off-smarty branch
+  * use -r, --rubypants to turn on rubypants 'smart' quote handling
+
 == 0.5.3 / 2010-02-15
 
 * Minor enhancement: Displays inline images
@@ -63,7 +67,7 @@
 
 * Renamed the gem to org-ruby
 * Added +to_html+ for HTML output
-* Now supports the following inline markup: 
+* Now supports the following inline markup:
   * bold
   * italic
   * code
