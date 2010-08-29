@@ -28,6 +28,12 @@ module Orgmode
     # Array of custom keywords.
     attr_reader :custom_keywords
 
+    # Filename
+    attr_accessor :filename
+
+    # use_smarty
+    attr_accessor :use_smarty
+
     # Regexp that recognizes words in custom_keywords.
     def custom_keyword_regexp
       return nil if @custom_keywords.empty?
@@ -86,6 +92,7 @@ module Orgmode
       @header_lines = []
       @in_buffer_settings = { }
       @options = { }
+      @filename = nil
       mode = :normal
       previous_line = nil
       @lines.each do |line|
@@ -134,8 +141,10 @@ module Orgmode
 
     # Creates a new parser from the data in a given file
     def self.load(fname)
-      lines = IO.readlines(fname)
-      return self.new(lines)
+      lines = IO.read(fname).split("\n")
+      p = self.new(lines)
+      p.filename = fname
+      p
     end
 
     # Saves the loaded orgmode file as a textile file.
@@ -149,7 +158,7 @@ module Orgmode
     end
 
     # Converts the loaded org-mode file to HTML.
-    def to_html(use_smarty = true)
+    def to_html(output_buffer_class=HtmlOutputBuffer)
       mark_trees_for_export
       export_options = {
         :decorate_title => true,
@@ -158,16 +167,15 @@ module Orgmode
       }
       export_options[:skip_tables] = true if not export_tables?
       output = ""
-      output_buffer = HtmlOutputBuffer.new(output, export_options)
-
+      output_buffer = output_buffer_class.new(output, export_options)
       if @in_buffer_settings["TITLE"] then
 
         # If we're given a new title, then just create a new line
         # for that title.
         title = Line.new(@in_buffer_settings["TITLE"], self)
-        Parser.translate([title], output_buffer)
+        Parser.translate([title], output_buffer, filename)
       end
-      Parser.translate(@header_lines, output_buffer) unless skip_header_lines?
+      Parser.translate(@header_lines, output_buffer, filename) unless skip_header_lines?
 
       # If we've output anything at all, remove the :decorate_title option.
       export_options.delete(:decorate_title) if (output.length > 0)
@@ -177,9 +185,9 @@ module Orgmode
         when :exclude
           # NOTHING
         when :headline_only
-          Parser.translate(headline.body_lines[0, 1], output_buffer)
+          Parser.translate(headline.body_lines[0, 1], output_buffer, filename)
         when :all
-          Parser.translate(headline.body_lines, output_buffer)
+          Parser.translate(headline.body_lines, output_buffer, filename)
         end
       end
       if use_smarty
@@ -195,7 +203,7 @@ module Orgmode
 
     # Converts an array of lines to the appropriate format.
     # Writes the output to +output_buffer+.
-    def self.translate(lines, output_buffer)
+    def self.translate(lines, output_buffer, filename=nil)
       lines.each do |line|
 
         # See if we're carrying paragraph payload, and output
@@ -203,6 +211,16 @@ module Orgmode
         output_buffer.prepare(line)
 
         case line.paragraph_type
+        when :include_src
+
+          output_buffer.push_mode(:include_src, :lang => line.include_lang)
+          if filename
+            include_file = File.expand_path(line.include_file, File.dirname(filename))
+          else
+            include_file = File.expand_path line.include_file
+          end
+          File.foreach(include_file) {|fline| output_buffer << fline }
+
         when :metadata, :table_separator, :blank
 
           output_buffer << line.line if output_buffer.preserve_whitespace?

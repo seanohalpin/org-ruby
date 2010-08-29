@@ -40,7 +40,8 @@ begin
     data = IO.read(ARGV[0])
     p = Orgmode::Parser.new(data)
     $DEBUG = true if options[:debug]
-    puts p.to_html(options[:rubypants]) if options[:format] == :html
+    p.use_smarty = options[:rubypants]
+    puts p.to_html if options[:format] == :html
     puts p.to_textile if options[:format] == :textile
   end
 rescue OptionParser::ParseError

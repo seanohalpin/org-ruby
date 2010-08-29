@@ -60,7 +60,6 @@ module Orgmode
       @logger = Logger.new(STDERR)
       @logger.level = Logger::WARN
       build_org_emphasis_regexp
-      build_org_link_regexp
     end
 
     # Finds all emphasis matches in a string.
@@ -99,6 +98,22 @@ module Orgmode
       end
     end
 
+    ORG_LINK_OR_URL_REGEXP = /
+                              (?: # link with text
+                               \[\[
+                                 ((?:https?|file)[^\]]*)
+                               \]\[
+                                 ([^\]]*)
+                               \]\]
+                              )
+                               |
+                              (?:
+                               \[\[ # url link
+                                 ([^\]]*)
+                               \]\]
+                              )
+                               |
+                              (?:((?:https?|file):[^\]\s]*)(\]\])?)/x # bare url
     # = Summary
     #
     # Rewrite org-mode links in a string to markup suitable to the
@@ -125,19 +140,23 @@ module Orgmode
     # HTML-style link, and that is how things will get recorded in
     # +result+.
     def rewrite_links(str) #  :yields: link, text
-      i = str.gsub(@org_link_regexp) do |match|
-        yield $1, nil
-      end
-      i.gsub(@org_link_text_regexp) do |match|
-        yield $1, $2
+      str.gsub(ORG_LINK_OR_URL_REGEXP) do
+        m = Regexp.last_match
+        if m[1] && m[2]
+          yield m[1], m[2]
+        elsif m[3]
+          yield m[3], nil
+        elsif m[4]
+          yield m[4], nil
+        else
+          m[0]
+        end
       end
     end
     
     # Rewrites all of the inline image tags.
     def rewrite_images(str) #  :yields: image_link
-      str.gsub(@org_img_regexp) do |match|
-        yield $1
-      end
+      raise "Do not use rewrite_images, use rewrite_links instead!"
     end
 
     private
@@ -152,18 +171,5 @@ module Orgmode
       @logger.debug "Just created regexp: #{@org_emphasis_regexp}"
     end
 
-    def build_org_link_regexp
-      @org_link_regexp = /\[\[
-                             ([^\]]*) # This is the URL
-                          \]\]/x
-      @org_img_regexp = /\[\[
-          ([^\]]*\.(jpg|jpeg|gif|png)) # Like a normal URL, but must end with a specified extension
-        \]\]/xi
-      @org_link_text_regexp = /\[\[
-                                 ([^\]]*) # This is the URL
-                               \]\[
-                                 ([^\]]*) # This is the friendly text
-                               \]\]/x
-    end
   end                           # class Emphasis
 end                             # module Orgmode

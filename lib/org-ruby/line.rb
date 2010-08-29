@@ -28,6 +28,8 @@ module Orgmode
       @line =~ /\s*/
       @assigned_paragraph_type = nil
       @indent = $&.length unless blank?
+      @include_file = nil
+      @include_lang = nil
     end
 
     def to_s
@@ -112,6 +114,14 @@ module Orgmode
       table_row? or table_separator? or table_header?
     end
 
+    IncludeSrcRegexp = /^\s*#\+INCLUDE: (.+)\s+(?:src|example)(?:\s+(\S+))?/
+    def include_src?
+      ret = (@line =~ IncludeSrcRegexp)
+      @include_file, @include_lang = $1, $2 if ret
+      ret
+    end
+    attr_reader :include_file, :include_lang
+
     BlockRegexp = /^\s*#\+(BEGIN|END)_(\w*)/
 
     def begin_block?
@@ -161,6 +171,7 @@ module Orgmode
 
     # Determines the paragraph type of the current line.
     def paragraph_type
+      return :include_src if include_src?
       return :blank if blank?
       return :ordered_list if ordered_list?
       return :unordered_list if unordered_list?

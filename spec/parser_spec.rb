@@ -22,7 +22,7 @@ describe Orgmode::Parser do
 
   it "can find a headline by index" do
     parser = Orgmode::Parser.load(RememberFile)
-    parser.headlines[1].line.should eql("** YAML header in Webby\n")
+    parser.headlines[1].line.should eql("** YAML header in Webby")
   end
 
   it "should determine headline levels" do
@@ -119,7 +119,7 @@ describe Orgmode::Parser do
       it "should convert #{basename}.org to Textile" do
         expected = IO.read(textile_name)
         expected.should be_kind_of(String)
-        parser = Orgmode::Parser.new(IO.read(file))
+        parser = Orgmode::Parser.load(file)
         actual = parser.to_textile
         actual.should be_kind_of(String)
         actual.should == expected
@@ -131,17 +131,18 @@ describe Orgmode::Parser do
     # Dynamic generation of examples from each *.org file in html_examples.
     # Each of these files is convertable to HTML.
     data_directory = File.join(File.dirname(__FILE__), "html_examples")
+    process_erb_files data_directory
     org_files = File.expand_path(File.join(data_directory, "*.org" ))
     files = Dir.glob(org_files)
     files.each do |file|
       basename = File.basename(file, ".org")
-      textile_name = File.join(data_directory, basename + ".html")
-      textile_name = File.expand_path(textile_name)
+      html_name = File.join(data_directory, basename + ".html")
+      html_name = File.expand_path(html_name)
 
       it "should convert #{basename}.org to HTML" do
-        expected = IO.read(textile_name)
+        expected = IO.read(html_name)
         expected.should be_kind_of(String)
-        parser = Orgmode::Parser.new(IO.read(file))
+        parser = Orgmode::Parser.load(file)
         actual = parser.to_html
         actual.should be_kind_of(String)
         actual.should == expected

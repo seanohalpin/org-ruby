@@ -25,7 +25,8 @@ module Orgmode
       :blockquote => "blockquote",
       :example => "pre",
       :src => "pre",
-      :inline_example => "pre"
+      :inline_example => "pre",
+      :include_src => "pre",
     }
 
     attr_reader :options
@@ -44,18 +45,18 @@ module Orgmode
     # Output buffer is entering a new mode. Use this opportunity to
     # write out one of the block tags in the ModeTag constant to put
     # this information in the HTML stream.
-    def push_mode(mode)
+    def push_mode(mode, opts={})
       if ModeTag[mode] then
         output_indentation
         css_class = ""
-        css_class = " class=\"src\"" if mode == :src
+        css_class = " class=\"src\"" if [:src, :include_src].include? mode
         css_class = " class=\"example\"" if (mode == :example || mode == :inline_example)
         @logger.debug "#{mode}: <#{ModeTag[mode]}#{css_class}>\n" 
         @output << "<#{ModeTag[mode]}#{css_class}>\n" unless mode == :table and skip_tables?
         # Entering a new mode obliterates the title decoration
         @title_decoration = ""
       end
-      super(mode)
+      super(mode, opts)
     end
 
     # We are leaving a mode. Close any tags that were opened when
@@ -142,24 +143,38 @@ module Orgmode
     # Applies inline formatting rules to a string.
     def inline_formatting(str)
       str.rstrip!
-      str = @re_help.rewrite_emphasis(str) do |marker, s|
+      str = format_emphasis(str)
+      str = format_links(str)
+      format_tables!(str)
+      str
+    end
+    
+    def format_emphasis(str)
+      @re_help.rewrite_emphasis(str) do |marker, s|
         "#{Tags[marker][:open]}#{s}#{Tags[marker][:close]}"
       end
-      str = @re_help.rewrite_images(str) do |link|
-        "<img src=\"#{link}\" />"
-      end
-      str = @re_help.rewrite_links(str) do |link, text|
-        text ||= link
-        link = link.sub(/^file:(.*)::(.*?)$/) do
-
-          # We don't support search links right now. Get rid of it.
-
-          "file:#{$1}"
+    end
+    
+    def format_links(str)
+      @re_help.rewrite_links(str) do |link, text|
+        if link =~ /(?:jpg|jpeg|gif|png)$/
+          "<img src=\"#{link}\" />"
+        else
+          text ||= link
+          link = link.sub(/^file:(.*)::(.*?)$/) do
+            
+            # We don't support search links right now. Get rid of it.
+            
+            "file:#{$1}"
+          end
+          link = link.sub(/^file:/i, "") # will default to HTTP
+          link = link.sub(/\.org$/i, ".html")
+          "<a href=\"#{link}\">#{text}</a>"
         end
-        link = link.sub(/^file:/i, "") # will default to HTTP
-        link = link.sub(/\.org$/i, ".html")
-        "<a href=\"#{link}\">#{text}</a>"
       end
+    end
+
+    def format_tables!(str)
       if (@output_type == :table_row) then
         str.gsub!(/^\|\s*/, "<td>")
         str.gsub!(/\s*\|$/, "</td>")
@@ -172,6 +187,5 @@ module Orgmode
       end
       str
     end
-
   end                           # class HtmlOutputBuffer
 end                             # module Orgmode
