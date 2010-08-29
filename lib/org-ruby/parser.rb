@@ -149,7 +149,7 @@ module Orgmode
     end
 
     # Converts the loaded org-mode file to HTML.
-    def to_html
+    def to_html(use_smarty = true)
       mark_trees_for_export
       export_options = {
         :decorate_title => true,
@@ -159,7 +159,7 @@ module Orgmode
       export_options[:skip_tables] = true if not export_tables?
       output = ""
       output_buffer = HtmlOutputBuffer.new(output, export_options)
-      
+
       if @in_buffer_settings["TITLE"] then
 
         # If we're given a new title, then just create a new line
@@ -168,7 +168,7 @@ module Orgmode
         Parser.translate([title], output_buffer)
       end
       Parser.translate(@header_lines, output_buffer) unless skip_header_lines?
-      
+
       # If we've output anything at all, remove the :decorate_title option.
       export_options.delete(:decorate_title) if (output.length > 0)
       @headlines.each do |headline|
@@ -182,8 +182,12 @@ module Orgmode
           Parser.translate(headline.body_lines, output_buffer)
         end
       end
-      rp = RubyPants.new(output)
-      rp.to_html
+      if use_smarty
+        rp = RubyPants.new(output)
+        rp.to_html
+      else
+        output
+      end
     end
 
     ######################################################################
@@ -201,10 +205,10 @@ module Orgmode
         case line.paragraph_type
         when :metadata, :table_separator, :blank
 
-          output_buffer << line.line if output_buffer.preserve_whitespace?          
+          output_buffer << line.line if output_buffer.preserve_whitespace?
 
         when :comment
-          
+
           if line.begin_block?
             output_buffer.push_mode(:blockquote) if line.block_type == "QUOTE"
             output_buffer.push_mode(:src) if line.block_type == "SRC"
@@ -222,7 +226,7 @@ module Orgmode
           output_buffer << line.line.lstrip
 
         when :unordered_list, :ordered_list
-          
+
           output_buffer << line.output_text << " "
 
         when :inline_example

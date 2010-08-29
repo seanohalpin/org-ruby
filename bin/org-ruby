@@ -10,7 +10,8 @@ options = {}
 options_parser = OptionParser.new do |opts|
   options[:help] = false
   options[:format] = :html
-  
+  options[:rubypants] = false
+
   opts.banner = "Usage: org-ruby <file> [options]"
 
   opts.on("-h", "--help", "Show this message") do |v|
@@ -25,6 +26,10 @@ options_parser = OptionParser.new do |opts|
           "Translate the ORG file to the specified format.") do |v|
     options[:format] = v
   end
+
+  opts.on("-r", "--rubypants", "Turn RubyPants on.") do |v|
+    options[:rubypants] = true
+  end
 end
 
 begin
@@ -35,7 +40,7 @@ begin
     data = IO.read(ARGV[0])
     p = Orgmode::Parser.new(data)
     $DEBUG = true if options[:debug]
-    puts p.to_html if options[:format] == :html
+    puts p.to_html(options[:rubypants]) if options[:format] == :html
     puts p.to_textile if options[:format] == :textile
   end
 rescue OptionParser::ParseError
